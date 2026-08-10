@@ -12,7 +12,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// 2. Parse incoming JSON payloads
+// 2. Middleware to reject POST/PUT requests missing Content-Type: application/json
+app.use((req, res, next) => {
+  if (req.method === 'POST' || req.method === 'PUT') {
+    const contentType = req.headers['content-type'];
+    if (!contentType || !contentType.includes('application/json')) {
+      return res.status(400).json({ error: 'Content-Type must be application/json' });
+    }
+  }
+  next();
+});
+
+// 3. Parse incoming JSON payloads
 app.use(express.json());
 
 // 3. In-memory storage for tasks
@@ -106,6 +117,11 @@ app.delete('/tasks/:id', (req, res, next) => {
 // A test endpoint to trigger an error for global error handler verification
 app.get('/trigger-error', (req, res, next) => {
   next(new Error('This is a simulated server error for testing global error handling middleware!'));
+});
+
+// 404 handler for undefined routes
+app.use((req, res, next) => {
+  res.status(404).json({ error: 'Not Found', message: `Route ${req.originalUrl} not found` });
 });
 
 // 5. Global error handling middleware as the very last middleware
