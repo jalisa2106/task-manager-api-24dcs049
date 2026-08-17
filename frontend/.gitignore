@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 tasks/
+
+.env
+
+backend/node_modules
