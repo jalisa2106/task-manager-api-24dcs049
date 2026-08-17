@@ -5,10 +5,25 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 
+// In-memory ring buffer for request logs
+const maxLogs = 10;
+const requestLogs = [];
+
 // 1. Request logging middleware at the top of the pipeline
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${req.method} ${req.url}`);
+  
+  requestLogs.push({
+    method: req.method,
+    url: req.url,
+    timestamp: timestamp
+  });
+  
+  if (requestLogs.length > maxLogs) {
+    requestLogs.shift();
+  }
+  
   next();
 });
 
@@ -38,6 +53,15 @@ app.get('/tasks', (req, res, next) => {
     res.status(200).json(tasks);
   } catch (error) {
     next(error); // Forward to global error handler
+  }
+});
+
+// GET /logs - Retrieve the last 10 request logs
+app.get('/logs', (req, res, next) => {
+  try {
+    res.status(200).json(requestLogs);
+  } catch (error) {
+    next(error);
   }
 });
 
