@@ -477,3 +477,18 @@ body {
     transform: translateY(0);
   }
 }
+
+/* ---- Practical 6: edit mode + toast ---- */
+.edit-box { display: flex; flex-direction: column; gap: 8px; }
+.edit-input {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border-glass); background: var(--bg-glass);
+  color: var(--text-primary); font-family: var(--font-sans);
+  box-sizing: border-box;
+}
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; border-radius: 10px;
+  background: var(--bg-card); border: 1px solid var(--accent-green);
+  color: var(--text-primary); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); z-index: 50;
+  animation: fadeIn 0.3s ease;
+}

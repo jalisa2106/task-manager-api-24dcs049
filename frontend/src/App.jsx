@@ -10,10 +10,23 @@ function App() {
   const [error, setError] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null); // Tracks which specific task is performing an update/delete action
 
+  // Practical 6: edit mode + toast notification
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [toast, setToast] = useState(null); // { type: 'success', text: '...' }
+
   // Fetch tasks on initial component mount
   useEffect(() => {
     loadTasks();
   }, []);
+
+  // Hide the toast automatically after 3 seconds
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -42,6 +55,7 @@ function App() {
       setTasks((prevTasks) => [newTask, ...prevTasks]);
       setTitle('');
       setDescription('');
+      setToast({ type: 'success', text: 'Task created' });
     } catch (err) {
       setError(err.message || 'Failed to create task.');
     } finally {
@@ -57,6 +71,7 @@ function App() {
       setTasks((prevTasks) =>
         prevTasks.map((t) => (t.id === task.id ? updated : t))
       );
+      setToast({ type: 'success', text: updated.completed ? 'Marked as completed' : 'Marked as pending' });
     } catch (err) {
       setError(err.message || 'Failed to update task.');
     } finally {
@@ -65,13 +80,42 @@ function App() {
   };
 
   const handleDeleteTask = async (taskId) => {
+    if (!window.confirm('Delete this task? This cannot be undone.')) return;
     setError(null);
     setActionLoadingId(taskId);
     try {
       await deleteTask(taskId);
       setTasks((prevTasks) => prevTasks.filter((t) => t.id !== taskId));
+      setToast({ type: 'success', text: 'Task deleted' });
     } catch (err) {
       setError(err.message || 'Failed to delete task.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const startEdit = (task) => {
+    setEditingId(task.id);
+    setEditTitle(task.title);
+    setEditDescription(task.description || '');
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const handleSaveEdit = async (taskId) => {
+    if (!editTitle.trim()) {
+      setError('Task title is required');
+      return;
+    }
+    setError(null);
+    setActionLoadingId(taskId);
+    try {
+      const updated = await updateTask(taskId, { title: editTitle, description: editDescription });
+      setTasks((prevTasks) => prevTasks.map((t) => (t.id === taskId ? updated : t)));
+      setEditingId(null);
+      setToast({ type: 'success', text: 'Task updated' });
+    } catch (err) {
+      setError(err.message || 'Failed to update task.');
     } finally {
       setActionLoadingId(null);
     }
@@ -84,7 +128,7 @@ function App() {
           <span className="accent-dot"></span>
           <h1>TaskSpace</h1>
         </div>
-        <p className="app-subtitle">Standalone Full-Stack Task Workspace — Practical 4</p>
+        <p className="app-subtitle">Full-Stack Task Workspace — React + Express + MongoDB</p>
       </header>
 
       <main className="main-content">
@@ -182,27 +226,69 @@ function App() {
                   </div>
                   
                   <div className="task-card-body">
-                    <h3>{task.title}</h3>
-                    {task.description && <p>{task.description}</p>}
+                    {editingId === task.id ? (
+                      <div className="edit-box">
+                        <input
+                          className="edit-input"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                        />
+                        <textarea
+                          className="edit-input"
+                          rows="2"
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <h3>{task.title}</h3>
+                        {task.description && <p>{task.description}</p>}
+                      </>
+                    )}
                   </div>
 
                   <div className="task-card-actions">
-                    <button
-                      onClick={() => handleToggleComplete(task)}
-                      disabled={actionLoadingId !== null}
-                      className={`btn-action btn-toggle ${task.completed ? 'active' : ''}`}
-                      title={task.completed ? 'Mark as Pending' : 'Mark as Completed'}
-                    >
-                      {task.completed ? '✓ Done' : 'Complete'}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTask(task.id)}
-                      disabled={actionLoadingId !== null}
-                      className="btn-action btn-delete"
-                      title="Delete Task"
-                    >
-                      Delete
-                    </button>
+                    {editingId === task.id ? (
+                      <>
+                        <button
+                          onClick={() => handleSaveEdit(task.id)}
+                          disabled={actionLoadingId !== null}
+                          className="btn-action btn-toggle active"
+                        >
+                          Save
+                        </button>
+                        <button onClick={cancelEdit} className="btn-action btn-toggle">
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEdit(task)}
+                          disabled={actionLoadingId !== null}
+                          className="btn-action btn-toggle"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleToggleComplete(task)}
+                          disabled={actionLoadingId !== null}
+                          className={`btn-action btn-toggle ${task.completed ? 'active' : ''}`}
+                          title={task.completed ? 'Mark as Pending' : 'Mark as Completed'}
+                        >
+                          {task.completed ? '✓ Done' : 'Complete'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTask(task.id)}
+                          disabled={actionLoadingId !== null}
+                          className="btn-action btn-delete"
+                          title="Delete Task"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -210,6 +296,8 @@ function App() {
           )}
         </section>
       </main>
+
+      {toast && <div className={`toast toast-${toast.type}`}>{toast.text}</div>}
 
       <footer className="app-footer">
         <p>Built with Node.js, Express, React, and Vite</p>

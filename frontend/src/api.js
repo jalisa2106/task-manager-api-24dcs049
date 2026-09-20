@@ -1,51 +1,28 @@
-const API_BASE_URL = 'http://localhost:5000';
+// One shared base URL for the whole app (change it in frontend/.env, not in the code)
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-export async function fetchTasks() {
-  const response = await fetch(`${API_BASE_URL}/tasks`);
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || 'Failed to fetch tasks');
-  }
-  return response.json();
-}
+// Every API call goes through this one helper: same error handling everywhere
+async function request(path, { method = 'GET', body } = {}) {
+  const headers = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
 
-export async function createTask(title, description) {
-  const response = await fetch(`${API_BASE_URL}/tasks`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ title, description }),
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || 'Failed to create task');
+    // The backend sends { error, message }: prefer the detailed message
+    throw new Error(data.message || data.error || 'Request failed');
   }
-  return response.json();
+  return data;
 }
 
-export async function updateTask(id, updates) {
-  const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(updates),
-  });
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || 'Failed to update task');
-  }
-  return response.json();
-}
-
-export async function deleteTask(id) {
-  const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
-    method: 'DELETE',
-  });
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error || 'Failed to delete task');
-  }
-  return response.json();
-}
+export const fetchTasks = () => request('/tasks');
+export const createTask = (title, description) =>
+  request('/tasks', { method: 'POST', body: { title, description } });
+export const updateTask = (id, updates) =>
+  request(`/tasks/${id}`, { method: 'PUT', body: updates });
+export const deleteTask = (id) => request(`/tasks/${id}`, { method: 'DELETE' });
