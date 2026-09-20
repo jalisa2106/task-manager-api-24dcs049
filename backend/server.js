@@ -1,4 +1,4 @@
-require('dotenv').config({ override: true });
+require('dotenv').config({ quiet: true });
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -9,14 +9,14 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 
-// Connect to MongoDB
+// ---- Database connection (never print the connection string: it contains the password)
 const uri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/taskmanager';
-console.log('Connecting to MongoDB URI:', uri);
-mongoose.connect(uri)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+mongoose
+  .connect(uri, { serverSelectionTimeoutMS: 10000 })
+  .then(() => console.log(`MongoDB connected (database: ${mongoose.connection.name})`))
+  .catch((err) => console.error('MongoDB connection error:', err.message));
 
-// In-memory ring buffer for request logs
+// ---- Request log buffer
 const maxLogs = 10;
 const requestLogs = [];
 
@@ -24,17 +24,8 @@ const requestLogs = [];
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] ${req.method} ${req.url}`);
-  
-  requestLogs.push({
-    method: req.method,
-    url: req.url,
-    timestamp: timestamp
-  });
-  
-  if (requestLogs.length > maxLogs) {
-    requestLogs.shift();
-  }
-  
+  requestLogs.push({ method: req.method, url: req.url, timestamp });
+  if (requestLogs.length > maxLogs) requestLogs.shift();
   next();
 });
 
@@ -52,7 +43,7 @@ app.use((req, res, next) => {
 // 3. Parse incoming JSON payloads
 app.use(express.json());
 
-// 4. REST Endpoints
+// ---- Routes
 
 // GET /tasks - Retrieve all tasks
 app.get('/tasks', async (req, res, next) => {
@@ -60,14 +51,19 @@ app.get('/tasks', async (req, res, next) => {
     const tasks = await Task.find().sort({ createdAt: -1 });
     res.status(200).json(tasks);
   } catch (error) {
-    next(error); // Forward to global error handler
+    next(error);
   }
 });
 
 // GET /logs - Retrieve the last 10 request logs
-app.get('/logs', (req, res, next) => {
+app.get('/logs', (req, res) => res.status(200).json(requestLogs));
+
+// Practical 5 (assignment): GET one task, 404 if it does not exist
+app.get('/tasks/:id', async (req, res, next) => {
   try {
-    res.status(200).json(requestLogs);
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ error: `Task with ID ${req.params.id} not found` });
+    res.status(200).json(task);
   } catch (error) {
     next(error);
   }
@@ -76,44 +72,33 @@ app.get('/logs', (req, res, next) => {
 // POST /tasks - Create a new task
 app.post('/tasks', async (req, res, next) => {
   try {
-    const { title, description } = req.body;
-    
-    // Create new task
-    const newTask = new Task({
-      title: title,
-      description: description
-    });
-
-    const savedTask = await newTask.save();
+    const { title, description, priority } = req.body || {};
+    const task = new Task({ title, description, priority });
+    const savedTask = await task.save();
     res.status(201).json(savedTask);
   } catch (error) {
     next(error);
   }
 });
 
-// PUT /tasks/:id - Update an existing task by ID
+// PUT /tasks/:id - Update an existing task by ID (uses findByIdAndUpdate per P5 rubric)
 app.put('/tasks/:id', async (req, res, next) => {
   try {
-    const taskId = req.params.id;
-    const { title, description, completed } = req.body;
-
-    const task = await Task.findById(taskId);
-    if (!task) {
-      return res.status(404).json({ error: `Task with ID ${taskId} not found` });
+    const body = req.body || {};
+    if (body.completed !== undefined && typeof body.completed !== 'boolean') {
+      return res.status(400).json({ error: 'Validation Error', message: 'Completed must be a boolean' });
     }
+    const updates = {};
+    ['title', 'description', 'completed', 'priority'].forEach((key) => {
+      if (body[key] !== undefined) updates[key] = body[key];
+    });
 
-    // Update fields if provided
-    if (title !== undefined) task.title = title;
-    if (description !== undefined) task.description = description;
-    if (completed !== undefined) {
-      if (typeof completed !== 'boolean') {
-        return res.status(400).json({ error: 'Completed must be a boolean' });
-      }
-      task.completed = completed;
-    }
-
-    const updatedTask = await task.save();
-    res.status(200).json(updatedTask);
+    const task = await Task.findByIdAndUpdate(req.params.id, updates, {
+      returnDocument: 'after',
+      runValidators: true
+    });
+    if (!task) return res.status(404).json({ error: `Task with ID ${req.params.id} not found` });
+    res.status(200).json(task);
   } catch (error) {
     next(error);
   }
@@ -122,13 +107,8 @@ app.put('/tasks/:id', async (req, res, next) => {
 // DELETE /tasks/:id - Delete a task by ID
 app.delete('/tasks/:id', async (req, res, next) => {
   try {
-    const taskId = req.params.id;
-    const deletedTask = await Task.findByIdAndDelete(taskId);
-
-    if (!deletedTask) {
-      return res.status(404).json({ error: `Task with ID ${taskId} not found` });
-    }
-
+    const deletedTask = await Task.findByIdAndDelete(req.params.id);
+    if (!deletedTask) return res.status(404).json({ error: `Task with ID ${req.params.id} not found` });
     res.status(200).json({ message: 'Task deleted successfully', task: deletedTask });
   } catch (error) {
     next(error);
@@ -137,42 +117,29 @@ app.delete('/tasks/:id', async (req, res, next) => {
 
 // A test endpoint to trigger an error for global error handler verification
 app.get('/trigger-error', (req, res, next) => {
-  next(new Error('This is a simulated server error for testing global error handling middleware!'));
+  next(new Error('Simulated server error for testing the global error handler'));
 });
 
-// 404 handler for undefined routes
-app.use((req, res, next) => {
+// ---- 404 + global error handler (must stay LAST)
+app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', message: `Route ${req.originalUrl} not found` });
 });
 
-// 5. Global error handling middleware as the very last middleware
 app.use((err, req, res, next) => {
   console.error('Error occurred in pipeline:', err.message);
 
-  // Mongoose validation error handler
   if (err.name === 'ValidationError') {
-    const messages = Object.values(err.errors).map(val => val.message);
-    return res.status(400).json({
-      error: 'Validation Error',
-      message: messages.join(', ')
-    });
+    const messages = Object.values(err.errors).map((e) => e.message);
+    return res.status(400).json({ error: 'Validation Error', message: messages.join(', ') });
   }
-
-  // CastError (e.g. invalid ObjectId format)
   if (err.name === 'CastError') {
-    return res.status(400).json({
-      error: 'Invalid ID format',
-      message: `Invalid format for field ${err.path}`
-    });
+    return res.status(400).json({ error: 'Invalid ID format', message: `Invalid value for field ${err.path}` });
   }
-
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: err.message || 'Something went wrong on the server'
-  });
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid JSON', message: 'Request body is not valid JSON' });
+  }
+  // Never send err.message / err.stack for unexpected errors
+  res.status(500).json({ error: 'Internal Server Error', message: 'Something went wrong on the server' });
 });
 
-// Start listening
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
