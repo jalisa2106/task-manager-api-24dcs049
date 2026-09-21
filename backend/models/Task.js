@@ -14,10 +14,10 @@ const taskSchema = new mongoose.Schema({
     enum: { values: ['low', 'medium', 'high'], message: 'Priority must be low, medium or high' },
     default: 'medium'
   },
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // Practical 7
   createdAt: { type: Date, default: Date.now }
 });
 
-// Practical 5 (supplementary): pre-save hook that trims the title
 taskSchema.pre('save', function () {
   if (typeof this.title === 'string') this.title = this.title.trim();
 });
