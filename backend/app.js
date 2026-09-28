@@ -9,6 +9,7 @@ const errorHandler = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
+const cache = require('./config/cache');
 
 const app = express();
 
@@ -22,6 +23,11 @@ app.use('/auth', authRoutes);          // public: register + login (+ /me is pro
 app.use('/tasks', auth, taskRoutes);   // protected: every task route needs a valid JWT
 
 app.get('/logs', auth, (req, res) => res.status(200).json(logger.requestLogs));
+
+// Practical 9 (assignment): Debug cache stats endpoint
+app.get('/debug/cache', auth, (req, res) => {
+  res.status(200).json({ enabled: process.env.CACHE_ENABLED !== 'false', ...cache.getStats() });
+});
 
 app.get('/trigger-error', (req, res, next) => {
   next(new Error('Simulated server error for testing the global error handler'));
