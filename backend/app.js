@@ -11,6 +11,8 @@ const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const cache = require('./config/cache');
 
+require('./events/listeners'); // registers the event listeners once at startup
+
 const app = express();
 
 // ---- Pipeline order matters: cors -> logger -> content-type check -> body parser -> routes -> 404 -> error handler

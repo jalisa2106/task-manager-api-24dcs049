@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const { validateTask } = require('../middleware/validate');
 const cache = require('../config/cache');
+const taskEvents = require('../events/events');
 
 const router = express.Router();
 
@@ -69,7 +70,12 @@ router.post('/', validateTask(false), async (req, res, next) => {
     const { title, description, priority } = req.body;
     const task = await Task.create({ title, description, priority, user: req.user.id });
     cache.del(tasksKey(req.user.id)); // invalidate after a successful write
+
+    console.log(`[API] Response sent at ${new Date().toISOString()}`);
     res.status(201).json(task);
+
+    // Emit AFTER responding, so the listener can never delay the API response
+    taskEvents.emit('task-created', { id: task.id, title: task.title, userName: req.user.name });
   } catch (error) {
     next(error);
   }
@@ -98,6 +104,7 @@ router.delete('/:id', async (req, res, next) => {
     if (!deletedTask) return res.status(404).json({ error: `Task with ID ${req.params.id} not found` });
     cache.del(tasksKey(req.user.id)); // invalidate after a successful write
     res.status(200).json({ message: 'Task deleted successfully', task: deletedTask });
+    taskEvents.emit('task-deleted', { id: deletedTask.id, title: deletedTask.title, userName: req.user.name });
   } catch (error) {
     next(error);
   }
