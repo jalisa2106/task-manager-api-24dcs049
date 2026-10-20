@@ -1,5 +1,7 @@
 # Task Manager API & Full-Stack Application (`task-manager-api-24dcs049`)
 
+![CI](https://github.com/jalisa2106/task-manager-api-24dcs049/actions/workflows/ci.yml/badge.svg)
+
 **Subject:** Advanced Web Development Frameworks (ITUE301) | Semester 5  
 **Repository:** `task-manager-api-24dcs049` ([Backend Directory](https://github.com/jalisa2106/task-manager-api-24dcs049/tree/main/backend) & [Frontend Directory](https://github.com/jalisa2106/task-manager-api-24dcs049/tree/main/frontend))
 
