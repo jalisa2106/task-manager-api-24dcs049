@@ -166,11 +166,19 @@ npm run dev
 To run the entire full-stack application (Frontend, Backend, and MongoDB) with a single command:
 
 ```bash
+docker compose up --build
+# or with docker-compose v1:
 docker-compose up --build
 ```
 
-- **Frontend:** `http://localhost:5173` (or port specified in compose)
-- **Backend API:** `http://localhost:5000`
+- **Frontend Application:** `http://localhost:5173`
+- **Backend REST API:** `http://localhost:5000`
+- **MongoDB Database:** `localhost:27017` (data persisted via `mongo-data` volume)
+
+To stop the containers:
+```bash
+docker compose down
+```
 
 ---
 
