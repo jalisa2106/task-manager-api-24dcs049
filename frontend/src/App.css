@@ -501,3 +501,8 @@ body {
 .navbar a { color: var(--text-secondary); text-decoration: none; margin-right: 16px; }
 .navbar a.active { color: var(--accent-cyan); font-weight: 600; }
 .navbar-user { display: flex; align-items: center; gap: 12px; color: var(--text-secondary); }
+
+/* ---- Practical 13 ---- */
+.ai-helper { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.ai-notice { color: var(--text-secondary); }
+

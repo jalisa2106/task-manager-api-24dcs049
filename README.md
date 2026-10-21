@@ -23,7 +23,7 @@ The project evolves from a basic Express REST API with in-memory storage into a 
 - **Security & Auth:** JSON Web Tokens (JWT), Bcrypt.js, CORS
 - **Performance & Events:** Node-Cache, Node.js Built-in `EventEmitter`
 - **Testing & CI/CD:** Jest, Supertest, GitHub Actions
-- **AI Integration:** OpenAI API (with graceful degradation & fallback handling)
+- **AI Integration:** Google Gemini API (Free tier, with graceful degradation & fallback handling)
 - **DevOps & Containerization:** Docker, Docker Compose
 
 ---
@@ -116,7 +116,7 @@ task-manager-api-24dcs049/
 ### [Practical 13: AI API Integration into a Web Application](#)
 - **Objective:** Integrate an external AI service into the app and apply responsible-AI practices.
 - **Key Features:**
-  - Backend-secured OpenAI integration for automated task description generation.
+  - Backend-secured Google Gemini API integration (free tier) for automated task description generation.
   - Graceful degradation ensuring the core app remains functional if the AI service fails or times out.
 
 ---
@@ -144,7 +144,8 @@ Create a `.env` file inside the `backend/` directory based on `.env.example`:
 PORT=5000
 MONGO_URI=mongodb://localhost:27017/taskmanager
 JWT_SECRET=your_super_secret_jwt_key_here
-OPENAI_API_KEY=your_openai_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+AI_MODEL=gemini-1.5-flash
 ```
 Run the backend server:
 ```bash

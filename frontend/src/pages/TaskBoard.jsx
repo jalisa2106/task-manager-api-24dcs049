@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchTasks, createTask, updateTask, deleteTask } from '../api';
+import { fetchTasks, createTask, updateTask, deleteTask, generateDescription } from '../api';
 
 function TaskBoard() {
   const [tasks, setTasks] = useState([]);
@@ -14,6 +14,8 @@ function TaskBoard() {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [toast, setToast] = useState(null); // { type: 'success', text: '...' }
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiNotice, setAiNotice] = useState(null);
 
   // Fetch tasks on initial component mount
   useEffect(() => {
@@ -93,6 +95,29 @@ function TaskBoard() {
     }
   };
 
+  const handleGenerateDescription = async () => {
+    if (!title.trim()) {
+      setError('Type a task title first, then generate a description');
+      return;
+    }
+    setAiLoading(true);
+    setAiNotice(null);
+    try {
+      const result = await generateDescription(title);
+      if (result.fallback || !result.description) {
+        // Graceful degradation: the form still works, the user just writes it themselves
+        setAiNotice(result.message || 'AI suggestion is unavailable right now. You can write the description yourself.');
+      } else {
+        setDescription(result.description); // editable suggestion, not final text
+        setAiNotice('AI-generated suggestion. Please review and edit it before saving.');
+      }
+    } catch (err) {
+      setAiNotice(err.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const startEdit = (task) => {
     setEditingId(task.id);
     setEditTitle(task.title);
@@ -168,6 +193,17 @@ function TaskBoard() {
                 disabled={loading}
                 rows="3"
               />
+            </div>
+            <div className="ai-helper">
+              <button
+                type="button"
+                className="btn-action btn-toggle"
+                onClick={handleGenerateDescription}
+                disabled={loading || aiLoading}
+              >
+                {aiLoading ? 'Generating...' : '✨ Generate description'}
+              </button>
+              {aiNotice && <small className="ai-notice">{aiNotice}</small>}
             </div>
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? (

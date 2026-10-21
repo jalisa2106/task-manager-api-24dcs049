@@ -25,6 +25,36 @@ describe('API checks that need no database', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('Validation Error');
   });
+
+  test('POST /api/ai/generate-description without a token returns 401', async () => {
+    const res = await request(app)
+      .post('/api/ai/generate-description')
+      .send({ title: 'Test Task' });
+    expect(res.statusCode).toBe(401);
+  });
+
+  test('POST /api/ai/generate-description with missing title returns 400', async () => {
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: 'test_user_id', name: 'Test' }, process.env.JWT_SECRET);
+    const res = await request(app)
+      .post('/api/ai/generate-description')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: '' });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe('Validation Error');
+  });
+
+  test('POST /api/ai/generate-description handles missing API key with graceful fallback', async () => {
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: 'test_user_id', name: 'Test' }, process.env.JWT_SECRET);
+    const res = await request(app)
+      .post('/api/ai/generate-description')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Plan database schema' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.fallback).toBe(true);
+    expect(res.body.message).toMatch(/unavailable/i);
+  });
 });
 
 // Runs only when TEST_MONGO_URI is set (CI sets it). Never point this at your real Atlas database:

@@ -9,6 +9,7 @@ const errorHandler = require('./middleware/errorHandler');
 
 const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 const cache = require('./config/cache');
 
 require('./events/listeners'); // registers the event listeners once at startup
@@ -23,6 +24,7 @@ app.use(express.json());
 
 app.use('/auth', authRoutes);          // public: register + login (+ /me is protected inside)
 app.use('/tasks', auth, taskRoutes);   // protected: every task route needs a valid JWT
+app.use('/api/ai', auth, aiRoutes);    // protected: AI assistance routes
 
 app.get('/logs', auth, (req, res) => res.status(200).json(logger.requestLogs));
 
